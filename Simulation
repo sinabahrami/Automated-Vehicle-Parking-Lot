@@ -1,0 +1,1734 @@
+clear;
+clc;
+format shortG
+%%%%%%%%%%%%
+Numisl=input('Number of islands? ');       %number of islands
+for i=1:Numisl
+    x(i)=input(['Number of rows in island ' num2str(i) '? ']);
+end
+x=sort(x,'ascend');
+y=10;           %number of stacks in all islands
+v=sum(x)*y*2;   %number of vehicles
+lam=1/120;       %arrival rate
+maxdwellavg=8;  %maximum average dwell time
+shdw=4;         %short term and long term definition frontier         
+propsh=0.5;      %proportion of short term
+%lodw=4;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%% A1 policy %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for itt=1:100
+    for i=1:Numisl
+         park{i}=zeros(x(i),y);
+         typark{i}=zeros(x(i),y);
+    end
+    rng(itt);
+    arr=exprnd(lam,1,v);
+    arrival(1)=0+arr(1);
+    for i=2:v
+        arrival(i)=arrival(i-1)+arr(i);
+    end
+    rng(itt);
+    mu=randi(shdw,1,ceil(v*propsh));
+    rng(itt);
+    mu=[mu,shdw+randi(maxdwellavg-shdw,1,v-ceil(v*propsh))];
+    rng(itt);
+    shuf=randperm(v);
+    mu=mu(shuf);
+    for i=1:v
+        if mu(i)<=shdw
+            type(i)=0.4;
+        else
+            type(i)=0.8;
+        end
+    end
+    rng(itt);
+    for i=1:v
+        dwell(i)=exprnd(mu(i));
+    end
+    departure=arrival+dwell;
+    tot=[arrival,departure];
+    [event,n]=sort(tot,'ascend');
+
+    relocation=0;
+    rejection=0;
+    rejected=[];
+
+    for i=1:size(event,2)
+        if n(i)<=v
+            flag=0;
+            flagfor=0;
+            nisl=1;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},0)))>0
+                    flag=1;
+                elseif nisl+1<=Numisl
+                    nisl=nisl+1;                            
+                else
+                    rejection=rejection+1;
+                    rejected=[rejected,n(i)+v];
+                    flag=1;
+                    flagfor=1;
+                end
+            end
+            if flagfor==1
+                continue;
+            end
+            a=x(nisl)/2;
+            b=x(nisl)/2+1;
+            l=0;
+            while l<=0
+                if find(park{nisl}(a,:)==0,1)>0
+                    l=find(park{nisl}(a,:)==0,1);
+                    park{nisl}(a,l)=n(i);
+                elseif find(park{nisl}(b,:)==0,1)>0
+                    l=find(park{nisl}(b,:)==0,1);
+                    park{nisl}(b,l)=n(i);
+                else
+                    a=a-1;
+                    b=b+1;
+                end
+            end
+        else
+            if sum(ismember(rejected,n(i)))==1;
+                continue;
+            end
+            flag=0;
+            nisl=1;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},n(i)-v)))>0
+                    flag=1;
+                else
+                    nisl=nisl+1;
+                end
+            end
+            l=find(park{nisl}==(n(i)-v),1);
+            if rem(l,x(nisl))<=1
+                park{nisl}(l)=0;
+            elseif rem(l,x(nisl))<=x(nisl)/2
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=1:rem(l,x(nisl))-1
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0;
+                park{nisl}(:,dummy)=stack;
+            else
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=rem(l,x(nisl))+1:x(nisl)
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0; 
+                park{nisl}(:,dummy)=stack;
+            end
+        end
+    end
+    rej(itt)=rejection;
+    rel(itt)=relocation;
+end
+bo(:,1)=rel';
+[min(rel), mean(rel), max(rel)]
+if max(rej)>0
+    display('Rejected :');
+    [min(rej), mean(rej), max(rej)]
+end
+result(1)=mean(rel);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%% A2 policy %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for itt=1:100
+    for i=1:Numisl
+         park{i}=zeros(x(i),y);
+         typark{i}=zeros(x(i),y);
+    end
+    rng(itt);
+    arr=exprnd(lam,1,v);
+    arrival(1)=0+arr(1);
+    for i=2:v
+        arrival(i)=arrival(i-1)+arr(i);
+    end
+    rng(itt);
+    mu=randi(shdw,1,ceil(v*propsh));
+    rng(itt);
+    mu=[mu,shdw+randi(maxdwellavg-shdw,1,v-ceil(v*propsh))];
+    rng(itt);
+    shuf=randperm(v);
+    mu=mu(shuf);
+    for i=1:v
+        if mu(i)<=shdw
+            type(i)=0.4;
+        else
+            type(i)=0.8;
+        end
+    end
+    rng(itt);
+    for i=1:v
+        dwell(i)=exprnd(mu(i));
+    end
+    departure=arrival+dwell;
+    tot=[arrival,departure];
+    [event,n]=sort(tot,'ascend');
+
+    relocation=0;
+    rejection=0;
+    rejected=[];
+
+    for i=1:size(event,2)
+        if n(i)<=v
+            
+            for j=1:Numisl
+                a=x(j)/2;
+                b=x(j)/2+1;
+                l=0;
+                flagfi=0;
+                while a>0
+                    if isempty(find(park{j}(a,:)==0,1))==0 || isempty(find(park{j}(b,:)==0,1))==0
+                        fiisl(j)=l;
+                        a=0;
+                        flagfi=1;
+                    else
+                        l=l+1;
+                        a=a-1;
+                        b=b+1;
+                    end
+                end
+                if flagfi==0
+                    fiisl(j)=1000;
+                end
+            end
+            [flagfor, nisl]=min(fiisl);
+            if flagfor==1000;
+                rejection=rejection+1;
+                rejected=[rejected,n(i)+v];
+                continue;
+            end
+            a=x(nisl)/2;
+            b=x(nisl)/2+1;
+            l=0;
+            while l<=0
+                if find(park{nisl}(a,:)==0,1)>0
+                    l=find(park{nisl}(a,:)==0,1);
+                    park{nisl}(a,l)=n(i);
+                elseif find(park{nisl}(b,:)==0,1)>0
+                    l=find(park{nisl}(b,:)==0,1);
+                    park{nisl}(b,l)=n(i);
+                else
+                    a=a-1;
+                    b=b+1;
+                end
+            end
+        else
+            if sum(ismember(rejected,n(i)))==1;
+                continue;
+            end
+            flag=0;
+            nisl=1;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},n(i)-v)))>0
+                    flag=1;
+                else
+                    nisl=nisl+1;
+                end
+            end
+            l=find(park{nisl}==(n(i)-v),1);
+            if rem(l,x(nisl))<=1
+                park{nisl}(l)=0;
+            elseif rem(l,x(nisl))<=x(nisl)/2
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=1:rem(l,x(nisl))-1
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0;
+                park{nisl}(:,dummy)=stack;
+            else
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=rem(l,x(nisl))+1:x(nisl)
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0; 
+                park{nisl}(:,dummy)=stack;
+            end
+        end
+    end
+    rej(itt)=rejection;
+    rel(itt)=relocation;
+end
+bo(:,2)=rel';
+[min(rel), mean(rel), max(rel)]
+if max(rej)>0
+    display('Rejected :');
+    [min(rej), mean(rej), max(rej)]
+end
+result(2)=mean(rel);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%% C1 policy %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for itt=1:100
+    for i=1:Numisl
+         park{i}=zeros(x(i),y);
+         typark{i}=zeros(x(i),y);
+    end
+    rng(itt);
+    arr=exprnd(lam,1,v);
+    arrival(1)=0+arr(1);
+    for i=2:v
+        arrival(i)=arrival(i-1)+arr(i);
+    end
+    rng(itt);
+    mu=randi(shdw,1,ceil(v*propsh));
+    rng(itt);
+    mu=[mu,shdw+randi(maxdwellavg-shdw,1,v-ceil(v*propsh))];
+    rng(itt);
+    shuf=randperm(v);
+    mu=mu(shuf);
+    for i=1:v
+        if mu(i)<=shdw
+            type(i)=0.4;
+        else
+            type(i)=0.8;
+        end
+    end
+    rng(itt);
+    for i=1:v
+        dwell(i)=exprnd(mu(i));
+    end
+    departure=arrival+dwell;
+    tot=[arrival,departure];
+    [event,n]=sort(tot,'ascend');
+
+    relocation=0;
+    rejection=0;
+    rejected=[];
+
+    for i=1:size(event,2)
+        if n(i)<=v
+            if type(n(i))<0.5
+                flag=0;
+                flag1=0;
+                flagfor=0;
+                nisl=1;
+                while flag~=1
+                    if sum(sum(ismember(park{nisl}(1:x(nisl)/2,:),0)))>0
+                        flag=1;
+                    elseif nisl+1<=Numisl
+                        nisl=nisl+1;
+                    elseif nisl==Numisl
+                        nisl=1;
+                        flag1=1;
+                        while flag~=1
+                            if sum(sum(ismember(park{nisl},0)))>0
+                                flag=1;
+                            elseif nisl+1<=Numisl
+                                nisl=nisl+1;
+                            else
+                                rejection=rejection+1;
+                                rejected=[rejected,n(i)+v];
+                                flag=1;
+                                flagfor=1;
+                            end
+                        end                            
+                    end
+                end
+                if flagfor==1
+                    continue;
+                end
+                
+                if flag1==0
+                    a=x(nisl)/2;
+                else
+                    a=x(nisl)/2+1;
+                end
+                l=0;
+                while l<=0
+                    if find(park{nisl}(a,:)==0,1)>0
+                        l=find(park{nisl}(a,:)==0,1);
+                        park{nisl}(a,l)=n(i);
+                        typark{nisl}(a,l)=1;
+                    else
+                        if flag1==0
+                            a=a-1;
+                        else
+                            a=a+1;
+                        end
+                    end
+                end
+            else
+                flag=0;
+                flag1=0;
+                flagfor=0;
+                nisl=1;
+                while flag~=1
+                    if sum(sum(ismember(park{nisl}(x(nisl)/2+1:x(nisl),:),0)))>0
+                        flag=1;
+                    elseif nisl+1<=Numisl
+                        nisl=nisl+1;
+                    elseif nisl==Numisl
+                        flag1=1;
+                        nisl=1;
+                        while flag~=1
+                            if sum(sum(ismember(park{nisl},0)))>0
+                                flag=1;
+                            elseif nisl+1<=Numisl
+                                nisl=nisl+1;
+                            else
+                                rejection=rejection+1;
+                                rejected=[rejected,n(i)+v];
+                                flag=1;
+                                flagfor=1;
+                            end
+                        end                        
+                    end
+                end
+                if flagfor==1
+                    continue;
+                end
+                if flag1==0
+                    a=x(nisl)/2+1;
+                else
+                    a=x(nisl)/2;
+                end
+                l=0;
+                while l<=0
+                    if find(park{nisl}(a,:)==0,1)>0
+                        l=find(park{nisl}(a,:)==0,1);
+                        park{nisl}(a,l)=n(i);
+                        typark{nisl}(a,l)=2;
+                    else
+                        if flag1==0
+                            a=a+1;
+                        else
+                            a=a-1;
+                        end
+                    end
+                end 
+            end
+        else
+            
+            if sum(ismember(rejected,n(i)))==1;
+                continue;
+            end
+            flag=0;
+            nisl=1;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},n(i)-v)))>0
+                    flag=1;
+                else
+                    nisl=nisl+1;
+                end
+            end
+            l=find(park{nisl}==(n(i)-v),1);
+            if rem(l,x(nisl))<=1
+                park{nisl}(l)=0;
+            elseif rem(l,x(nisl))<=x(nisl)/2
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=1:rem(l,x(nisl))-1
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0;
+                park{nisl}(:,dummy)=stack;
+            else
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=rem(l,x(nisl))+1:x(nisl)
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0; 
+                park{nisl}(:,dummy)=stack;
+            end
+
+        end
+    end
+    rej(itt)=rejection;
+    rel(itt)=relocation;
+end
+bo(:,3)=rel';
+[min(rel), mean(rel), max(rel)]
+if max(rej)>0
+    display('Rejected :');
+    [min(rej), mean(rej), max(rej)]
+end
+result(3)=mean(rel);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%% C2 policy %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for itt=1:100
+    for i=1:Numisl
+         park{i}=zeros(x(i),y);
+         typark{i}=zeros(x(i),y);
+    end
+    rng(itt);
+    arr=exprnd(lam,1,v);
+    arrival(1)=0+arr(1);
+    for i=2:v
+        arrival(i)=arrival(i-1)+arr(i);
+    end
+    rng(itt);
+    mu=randi(shdw,1,ceil(v*propsh));
+    rng(itt);
+    mu=[mu,shdw+randi(maxdwellavg-shdw,1,v-ceil(v*propsh))];
+    rng(itt);
+    shuf=randperm(v);
+    mu=mu(shuf);
+    for i=1:v
+        if mu(i)<=shdw
+            type(i)=0.4;
+        else
+            type(i)=0.8;
+        end
+    end
+    rng(itt);
+    for i=1:v
+        dwell(i)=exprnd(mu(i));
+    end
+    departure=arrival+dwell;
+    tot=[arrival,departure];
+    [event,n]=sort(tot,'ascend');
+
+    relocation=0;
+    rejection=0;
+    rejected=[];
+
+    for i=1:size(event,2)
+        if n(i)<=v
+            if type(n(i))<0.5
+                flag=0;
+                flag1=0;
+                flagfor=0;
+                nisl=1;
+                while flag~=1
+                    if sum(sum(ismember(park{nisl}(1:x(nisl)/2,:),0)))>0
+                        flag=1;
+                    elseif nisl+1<=Numisl
+                        nisl=nisl+1;
+                    elseif nisl==Numisl
+                        nisl=1;
+                        flag1=1;
+                        while flag~=1
+                            if sum(sum(ismember(park{nisl},0)))>0
+                                flag=1;
+                            elseif nisl+1<=Numisl
+                                nisl=nisl+1;
+                            else
+                                rejection=rejection+1;
+                                rejected=[rejected,n(i)+v];
+                                flag=1;
+                                flagfor=1;
+                            end
+                        end                            
+                    end
+                end
+                if flagfor==1
+                    continue;
+                end
+                if flag1==0
+                    a=x(nisl)/2;
+                else
+                    a=x(nisl)/2+1;
+                end
+                l=0;
+                while l<=0
+                    if find(park{nisl}(a,:)==0,1)>0
+                        l=find(park{nisl}(a,:)==0,1);
+                        park{nisl}(a,l)=n(i);
+                        typark{nisl}(a,l)=1;
+                    else
+                        if flag1==0
+                            a=a-1;
+                        else
+                            a=a+1;
+                        end
+                    end
+                end
+            else
+                flag=0;
+                flag1=0;
+                flagfor=0;
+                nisl=Numisl;
+                while flag~=1
+                    if sum(sum(ismember(park{nisl}(x(nisl)/2+1:x(nisl),:),0)))>0
+                        flag=1;
+                    elseif nisl-1>=1
+                        nisl=nisl-1;
+                    elseif nisl==1
+                        flag1=1;
+                        nisl=Numisl;
+                        while flag~=1
+                            if sum(sum(ismember(park{nisl},0)))>0
+                                flag=1;
+                            elseif nisl-1>=1
+                                nisl=nisl-1;
+                            else
+                                rejection=rejection+1;
+                                rejected=[rejected,n(i)+v];
+                                flag=1;
+                                flagfor=1;
+                            end
+                        end                        
+                    end
+                end
+                if flagfor==1
+                    continue;
+                end
+                if flag1==0
+                    a=x(nisl)/2+1;
+                else
+                    a=x(nisl)/2;
+                end
+                l=0;
+                while l<=0
+                    if find(park{nisl}(a,:)==0,1)>0
+                        l=find(park{nisl}(a,:)==0,1);
+                        park{nisl}(a,l)=n(i);
+                        typark{nisl}(a,l)=2;
+                    else
+                        if flag1==0
+                            a=a+1;
+                        else
+                            a=a-1;
+                        end
+                    end
+                end 
+            end
+        else
+            
+            if sum(ismember(rejected,n(i)))==1;
+                continue;
+            end
+            flag=0;
+            nisl=1;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},n(i)-v)))>0
+                    flag=1;
+                else
+                    nisl=nisl+1;
+                end
+            end
+            l=find(park{nisl}==(n(i)-v),1);
+            if rem(l,x(nisl))<=1
+                park{nisl}(l)=0;
+            elseif rem(l,x(nisl))<=x(nisl)/2
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=1:rem(l,x(nisl))-1
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0;
+                park{nisl}(:,dummy)=stack;
+            else
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=rem(l,x(nisl))+1:x(nisl)
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0; 
+                park{nisl}(:,dummy)=stack;
+            end
+            
+        end
+    end
+    rej(itt)=rejection;
+    rel(itt)=relocation;
+end
+bo(:,4)=rel';
+[min(rel), mean(rel), max(rel)]
+if max(rej)>0
+    display('Rejected :');
+    [min(rej), mean(rej), max(rej)]
+end
+result(4)=mean(rel);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%% C3 policy %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for itt=1:100
+    for i=1:Numisl
+         park{i}=zeros(x(i),y);
+         typark{i}=zeros(x(i),y);
+    end
+    rng(itt);
+    arr=exprnd(lam,1,v);
+    arrival(1)=0+arr(1);
+    for i=2:v
+        arrival(i)=arrival(i-1)+arr(i);
+    end
+    rng(itt);
+    mu=randi(shdw,1,ceil(v*propsh));
+    rng(itt);
+    mu=[mu,shdw+randi(maxdwellavg-shdw,1,v-ceil(v*propsh))];
+    rng(itt);
+    shuf=randperm(v);
+    mu=mu(shuf);
+    for i=1:v
+        if mu(i)<=shdw
+            type(i)=0.4;
+        else
+            type(i)=0.8;
+        end
+    end
+    rng(itt);
+    for i=1:v
+        dwell(i)=exprnd(mu(i));
+    end
+    departure=arrival+dwell;
+    tot=[arrival,departure];
+    [event,n]=sort(tot,'ascend');
+
+    relocation=0;
+    rejection=0;
+    rejected=[];
+
+    for i=1:size(event,2)
+        if n(i)<=v
+            if type(n(i))<0.5
+                flag=0;
+                flagfor=0;
+                nisl=1;
+                while flag~=1
+                    if sum(sum(ismember(park{nisl},0)))>0
+                        flag=1;
+                    elseif nisl+1<=Numisl
+                        nisl=nisl+1;
+                    else
+                        rejection=rejection+1;
+                        rejected=[rejected,n(i)+v];
+                        flagfor=1;
+                        flag=1;
+                    end
+                end
+                if flagfor==1
+                    continue;
+                end
+                a=x(nisl)/2;
+                b=x(nisl)/2+1;
+                l=0;
+                while l<=0
+                    if find(park{nisl}(a,:)==0,1)>0
+                        l=find(park{nisl}(a,:)==0,1);
+                        park{nisl}(a,l)=n(i);
+                        typark{nisl}(a,l)=1;
+                    elseif find(park{nisl}(b,:)==0,1)>0
+                        l=find(park{nisl}(b,:)==0,1);
+                        park{nisl}(b,l)=n(i);
+                        typark{nisl}(b,l)=1;
+                    else
+                        a=a-1;
+                        b=b+1;
+                    end
+                end
+            else
+                flag=0;
+                nisl=Numisl;
+                flagfor=0;
+                while flag~=1
+                    if sum(sum(ismember(park{nisl},0)))>0
+                        flag=1;
+                    elseif nisl-1>=1
+                        nisl=nisl-1;
+                    else
+                        rejection=rejection+1;
+                        rejected=[rejected,n(i)+v];
+                        flagfor=1;
+                        flag=1;
+                    end
+                end
+                if flagfor==1
+                    continue;
+                end
+                a=x(nisl)/2;
+                b=x(nisl)/2+1;
+                l=0;
+                while l<=0
+                    if find(park{nisl}(a,:)==0,1)>0
+                        l=find(park{nisl}(a,:)==0,1);
+                        park{nisl}(a,l)=n(i);
+                        typark{nisl}(a,l)=2;
+                    elseif find(park{nisl}(b,:)==0,1)>0
+                        l=find(park{nisl}(b,:)==0,1);
+                        park{nisl}(b,l)=n(i);
+                        typark{nisl}(b,l)=2;
+                    else
+                        a=a-1;
+                        b=b+1;
+                    end
+                end 
+            end
+        else
+            
+            if sum(ismember(rejected,n(i)))==1;
+                continue;
+            end
+            flag=0;
+            nisl=1;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},n(i)-v)))>0
+                    flag=1;
+                else
+                    nisl=nisl+1;
+                end
+            end
+            l=find(park{nisl}==(n(i)-v),1);
+            if rem(l,x(nisl))<=1
+                park{nisl}(l)=0;
+            elseif rem(l,x(nisl))<=x(nisl)/2
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=1:rem(l,x(nisl))-1
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0;
+                park{nisl}(:,dummy)=stack;
+            else
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=rem(l,x(nisl))+1:x(nisl)
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0; 
+                park{nisl}(:,dummy)=stack;
+            end
+            
+        end
+    end
+    rej(itt)=rejection;
+    rel(itt)=relocation;
+end
+bo(:,5)=rel';
+[min(rel), mean(rel), max(rel)]
+if max(rej)>0
+    display('Rejected :');
+    [min(rej), mean(rej), max(rej)]
+end
+result(5)=mean(rel);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%% C4 policy %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for itt=1:100
+    for i=1:Numisl
+         park{i}=zeros(x(i),y);
+         typark{i}=zeros(x(i),y);
+    end
+    rng(itt);
+    arr=exprnd(lam,1,v);
+    arrival(1)=0+arr(1);
+    for i=2:v
+        arrival(i)=arrival(i-1)+arr(i);
+    end
+    rng(itt);
+    mu=randi(shdw,1,ceil(v*propsh));
+    rng(itt);
+    mu=[mu,shdw+randi(maxdwellavg-shdw,1,v-ceil(v*propsh))];
+    rng(itt);
+    shuf=randperm(v);
+    mu=mu(shuf);
+    for i=1:v
+        if mu(i)<=shdw
+            type(i)=0.4;
+        else
+            type(i)=0.8;
+        end
+    end
+    rng(itt);
+    for i=1:v
+        dwell(i)=exprnd(mu(i));
+    end
+    departure=arrival+dwell;
+    tot=[arrival,departure];
+    [event,n]=sort(tot,'ascend');
+
+    relocation=0;
+    rejection=0;
+    rejected=[];
+
+    for i=1:size(event,2)
+        if n(i)<=v
+            
+            if type(n(i))>=0.5
+                for j=1:Numisl
+                    a=x(j)/2;
+                    b=x(j)/2+1;
+                    l=0;
+                    flagfi=0;
+                    while a>0
+                        if isempty(find(park{j}(a,:)==0,1))==0 || isempty(find(park{j}(b,:)==0,1))==0
+                            fiisl(j)=l;
+                            a=0;
+                            flagfi=1;
+                        else
+                            l=l+1;
+                            a=a-1;
+                            b=b+1;
+                        end
+                    end
+                    if flagfi==0
+                        fiisl(j)=1000;
+                    end
+                end
+                [flagfor, nisl]=min(fiisl);
+                if flagfor==1000;
+                    rejection=rejection+1;
+                    rejected=[rejected,n(i)+v];
+                    continue;
+                end
+            else                
+                for j=1:Numisl                    
+                    if x(j)==2                       
+                        if isempty(find(park{j}==0,1))==0
+                            fiisl(j)=1;
+                            flagfi=1;
+                        else
+                            flagfi=0;
+                        end
+                    else
+                        a=x(j)/2;
+                        b=x(j)/2+1;
+                        l=0;
+                        flagfi=0;
+                        while a>0
+                            if isempty(find(typark{j}(a,:)==2,1))==0 || isempty(find(typark{j}(b,:)==2,1))==0
+                                if a>1
+                                    if isempty(find(park{j}(a-1,:)==0,1))==0 || isempty(find(park{j}(b+1,:)==0,1))==0
+                                        fiisl(j)=l;
+                                        a=0;
+                                        flagfi=1;
+                                    else
+                                        l=l+1;
+                                        a=a-1;
+                                        b=b+1;
+                                    end
+                                else
+                                    l=l+1;
+                                    a=a-1;
+                                    b=b+1;
+                                end
+                            elseif isempty(find(park{j}(a,:)==0,1))==0 || isempty(find(park{j}(b,:)==0,1))==0
+                                fiisl(j)=l;
+                                a=0;
+                                flagfi=1;
+                            else
+                                l=l+1;
+                                a=a-1;
+                                b=b+1;
+                            end
+                        end
+                    end
+                    
+                    if flagfi==0
+                        fiisl(j)=1000;
+                    end
+                end
+                [flagfor, nisl]=min(fiisl);
+                if flagfor==1000;
+                    rejection=rejection+1;
+                    rejected=[rejected,n(i)+v];
+                    continue;
+                end
+                
+            end
+            
+            a=x(nisl)/2;
+            b=x(nisl)/2+1;
+            l=0;
+            while l<=0
+                if find(park{nisl}(a,:)==0,1)>0
+                    l=find(park{nisl}(a,:)==0,1);
+                    park{nisl}(a,l)=n(i);
+                    if type(n(i))>=0.5
+                        typark{nisl}(a,l)=2;
+                    else
+                        typark{nisl}(a,l)=1;
+                    end
+                elseif find(park{nisl}(b,:)==0,1)>0
+                    l=find(park{nisl}(b,:)==0,1);
+                    park{nisl}(b,l)=n(i);
+                    if type(n(i))>=0.5
+                        typark{nisl}(b,l)=2;
+                    else
+                        typark{nisl}(b,l)=1;
+                    end
+                else
+                    a=a-1;
+                    b=b+1;
+                end
+            end
+        else
+            
+            if sum(ismember(rejected,n(i)))==1;
+                continue;
+            end
+            flag=0;
+            nisl=1;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},n(i)-v)))>0
+                    flag=1;
+                else
+                    nisl=nisl+1;
+                end
+            end
+            l=find(park{nisl}==(n(i)-v),1);
+            if rem(l,x(nisl))<=1
+                park{nisl}(l)=0;
+            elseif rem(l,x(nisl))<=x(nisl)/2
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=1:rem(l,x(nisl))-1
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0;
+                park{nisl}(:,dummy)=stack;
+            else
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=rem(l,x(nisl))+1:x(nisl)
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0; 
+                park{nisl}(:,dummy)=stack;
+            end
+        end
+    end
+    rej(itt)=rejection;
+    rel(itt)=relocation;
+end
+bo(:,6)=rel';
+[min(rel), mean(rel), max(rel)]
+if max(rej)>0
+    display('Rejected :');
+    [min(rej), mean(rej), max(rej)]
+end
+result(6)=mean(rel);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%% B1 policy %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for itt=1:100
+    for i=1:Numisl
+         park{i}=zeros(x(i),y);
+         typark{i}=zeros(x(i),y);
+    end
+    rng(itt);
+    arr=exprnd(lam,1,v);
+    arrival(1)=0+arr(1);
+    for i=2:v
+        arrival(i)=arrival(i-1)+arr(i);
+    end
+    rng(itt);
+    mu=randi(shdw,1,ceil(v*propsh));
+    rng(itt);
+    mu=[mu,shdw+randi(maxdwellavg-shdw,1,v-ceil(v*propsh))];
+    rng(itt);
+    shuf=randperm(v);
+    mu=mu(shuf);
+    rng(itt);
+    for i=1:v
+        dwell(i)=exprnd(mu(i));
+    end
+    departure=arrival+dwell;
+    tot=[arrival,departure];
+    [event,n]=sort(tot,'ascend');
+
+    relocation=0;
+    rejection=0;
+    rejected=[];
+    
+    for i=1:size(event,2)
+        if n(i)<=v
+            flag=0;
+            nisl=1;
+            flagfor=0;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},0)))>0
+                    flag=1;
+                elseif nisl+1<=Numisl
+                    nisl=nisl+1;                            
+                else
+                    rejection=rejection+1;
+                    rejected=[rejected,n(i)+v];
+                    flag=1;
+                    flagfor=1;
+                end
+            end
+            if flagfor==1
+                continue;
+            end
+            if sum(sum(park{nisl}))==0
+                park{nisl}(x(nisl)/2,1)=n(i);
+            else
+                parkn=park{nisl}(1:x(nisl)/2,:);
+                parks=park{nisl}(x(nisl)/2+1:end,:);
+                for j=1:y
+                    if sum(parkn(:,j))==0
+                        probn(j)=0;
+                    else
+                        if find(parkn(:,j)==0,1)>0
+                            a=find(parkn(:,j)>0);
+                            mustack=0;
+                            for jj=1:size(a,1)
+                                    mustack=mustack+1/mu(parkn(a(jj),j));
+                            end
+                            mustack=1/mustack;
+                            dumexp=arrival(n(i))-arrival(parkn(a(1),j));
+                            probn(j)=1-(mustack/(mu(n(i))+mustack))*exp(-dumexp/mustack);
+                        else
+                            probn(j)=2;
+                        end
+                    end
+                    if sum(parks(:,j))==0
+                        probs(j)=0;
+                    else
+                        if find(parks(:,j)==0,1)>0
+                            a=find(parks(:,j)>0);
+                            mustack=0;
+                            for jj=1:size(a,1)
+                                mustack=mustack+1/mu(parks(a(jj),j));
+                            end
+                            mustack=1/mustack;
+                            dumexp=arrival(n(i))-arrival(parks(a(end),j));
+                            probs(j)=1-(mustack/(mu(n(i))+mustack))*exp(-dumexp/mustack);
+                        else
+                            probs(j)=2;
+                        end
+                    end
+                end
+                prob=[probn,probs];
+                [Min,Imin] = min(prob);
+                if Imin<=y
+                    if find(parkn(:,Imin)>0,1)>0
+                        a=find(parkn(:,Imin)>0,1)-1;
+                    else
+                        a=x(nisl)/2;
+                    end
+                    parkn(a,Imin)=n(i);
+                else
+                    a=find(parks(:,Imin-y)==0,1);
+                    parks(a,Imin-y)=n(i);
+                end
+                park{nisl}=[parkn;parks];
+            end
+        else
+            
+            if sum(ismember(rejected,n(i)))==1;
+                continue;
+            end
+            flag=0;
+            nisl=1;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},n(i)-v)))>0
+                    flag=1;
+                else
+                    nisl=nisl+1;
+                end
+            end
+            l=find(park{nisl}==(n(i)-v),1);
+            if rem(l,x(nisl))<=1
+                park{nisl}(l)=0;
+            elseif rem(l,x(nisl))<=x(nisl)/2
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=1:rem(l,x(nisl))-1
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        mu(stack(j))=max(munew,0.001);
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0;
+                park{nisl}(:,dummy)=stack;
+            else
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=rem(l,x(nisl))+1:x(nisl)
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        mu(stack(j))=max(munew,0.001);
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0; 
+                park{nisl}(:,dummy)=stack;
+            end
+        end
+    end
+    rej(itt)=rejection;
+    rel(itt)=relocation;
+end
+bo(:,7)=rel';
+[min(rel), mean(rel), max(rel)]
+if max(rej)>0
+    display('Rejected :');
+    [min(rej), mean(rej), max(rej)]
+end
+result(7)=mean(rel);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%% B2 policy %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for itt=1:100
+    for i=1:Numisl
+         park{i}=zeros(x(i),y);
+         typark{i}=zeros(x(i),y);
+    end
+    rng(itt);
+    arr=exprnd(lam,1,v);
+    arrival(1)=0+arr(1);
+    for i=2:v
+        arrival(i)=arrival(i-1)+arr(i);
+    end
+    rng(itt);
+    mu=randi(shdw,1,ceil(v*propsh));
+    rng(itt);
+    mu=[mu,shdw+randi(maxdwellavg-shdw,1,v-ceil(v*propsh))];
+    rng(itt);
+    shuf=randperm(v);
+    mu=mu(shuf);
+    rng(itt);
+    for i=1:v
+        dwell(i)=exprnd(mu(i));
+    end
+    departure=arrival+dwell;
+    tot=[arrival,departure];
+    [event,n]=sort(tot,'ascend');
+
+    relocation=0;
+    rejection=0;
+    rejected=[];
+    
+    for i=1:size(event,2)
+        if n(i)<=v
+            
+            for j=1:Numisl
+                a=x(j)/2;
+                b=x(j)/2+1;
+                l=0;
+                flagfi=0;
+                while a>0
+                    if isempty(find(park{j}(a,:)==0,1))==0 || isempty(find(park{j}(b,:)==0,1))==0
+                        fiisl(j)=l;
+                        a=0;
+                        flagfi=1;
+                    else
+                        l=l+1;
+                        a=a-1;
+                        b=b+1;
+                    end
+                end
+                if flagfi==0
+                    fiisl(j)=1000;
+                end
+            end
+            [flagfor, nisl]=min(fiisl);
+            if flagfor==1000;
+                rejection=rejection+1;
+                rejected=[rejected,n(i)+v];
+                continue;
+            end
+            
+            
+            if sum(sum(park{nisl}))==0
+                park{nisl}(x(nisl)/2,1)=n(i);
+            else
+                parkn=park{nisl}(1:x(nisl)/2,:);
+                parks=park{nisl}(x(nisl)/2+1:end,:);
+                for j=1:y
+                    if sum(parkn(:,j))==0
+                        probn(j)=0;
+                    else
+                        if find(parkn(:,j)==0,1)>0
+                            a=find(parkn(:,j)>0);
+                            mustack=0;
+                            for jj=1:size(a,1)
+                                    mustack=mustack+1/mu(parkn(a(jj),j));
+                            end
+                            mustack=1/mustack;
+                            dumexp=arrival(n(i))-arrival(parkn(a(1),j));
+                            probn(j)=1-(mustack/(mu(n(i))+mustack))*exp(-dumexp/mustack);
+                        else
+                            probn(j)=2;
+                        end
+                    end
+                    if sum(parks(:,j))==0
+                        probs(j)=0;
+                    else
+                        if find(parks(:,j)==0,1)>0
+                            a=find(parks(:,j)>0);
+                            mustack=0;
+                            for jj=1:size(a,1)
+                                mustack=mustack+1/mu(parks(a(jj),j));
+                            end
+                            mustack=1/mustack;
+                            dumexp=arrival(n(i))-arrival(parks(a(end),j));
+                            probs(j)=1-(mustack/(mu(n(i))+mustack))*exp(-dumexp/mustack);
+                        else
+                            probs(j)=2;
+                        end
+                    end
+                end
+                prob=[probn,probs];
+                [Min,Imin] = min(prob);
+                if Imin<=y
+                    if find(parkn(:,Imin)>0,1)>0
+                        a=find(parkn(:,Imin)>0,1)-1;
+                    else
+                        a=x(nisl)/2;
+                    end
+                    parkn(a,Imin)=n(i);
+                else
+                    a=find(parks(:,Imin-y)==0,1);
+                    parks(a,Imin-y)=n(i);
+                end
+                park{nisl}=[parkn;parks];
+            end
+        else
+            
+            if sum(ismember(rejected,n(i)))==1;
+                continue;
+            end
+            flag=0;
+            nisl=1;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},n(i)-v)))>0
+                    flag=1;
+                else
+                    nisl=nisl+1;
+                end
+            end
+            l=find(park{nisl}==(n(i)-v),1);
+            if rem(l,x(nisl))<=1
+                park{nisl}(l)=0;
+            elseif rem(l,x(nisl))<=x(nisl)/2
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=1:rem(l,x(nisl))-1
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        mu(stack(j))=max(munew,0.001);
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0;
+                park{nisl}(:,dummy)=stack;
+            else
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=rem(l,x(nisl))+1:x(nisl)
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        mu(stack(j))=max(munew,0.001);
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0; 
+                park{nisl}(:,dummy)=stack;
+            end
+        end
+    end
+    rej(itt)=rejection;
+    rel(itt)=relocation;
+end
+bo(:,8)=rel';
+[min(rel), mean(rel), max(rel)]
+if max(rej)>0
+    display('Rejected :');
+    [min(rej), mean(rej), max(rej)]
+end
+result(8)=mean(rel);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%% B3 policy %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for itt=1:100
+    for i=1:Numisl
+         park{i}=zeros(x(i),y);
+         typark{i}=zeros(x(i),y);
+    end
+    rng(itt);
+    arr=exprnd(lam,1,v);
+    arrival(1)=0+arr(1);
+    for i=2:v
+        arrival(i)=arrival(i-1)+arr(i);
+    end
+    rng(itt);
+    mu=randi(shdw,1,ceil(v*propsh));
+    rng(itt);
+    mu=[mu,shdw+randi(maxdwellavg-shdw,1,v-ceil(v*propsh))];
+    rng(itt);
+    shuf=randperm(v);
+    mu=mu(shuf);
+    rng(itt);
+    for i=1:v
+        dwell(i)=exprnd(mu(i));
+    end
+    departure=arrival+dwell;
+    tot=[arrival,departure];
+    [event,n]=sort(tot,'ascend');
+
+    relocation=0;
+    rejection=0;
+    rejected=[];
+    
+    for i=1:size(event,2)
+        if n(i)<=v
+            
+            for jjj=1:Numisl
+
+                parkn=park{jjj}(1:x(jjj)/2,:);
+                parks=park{jjj}(x(jjj)/2+1:end,:);
+                for j=1:y
+                    if sum(parkn(:,j))==0
+                        probn((jjj-1)*y+j)=0;
+                    else
+                        if find(parkn(:,j)==0,1)>0
+                            a=find(parkn(:,j)>0);
+                            mustack=0;
+                            for jj=1:size(a,1)
+                                    mustack=mustack+1/mu(parkn(a(jj),j));
+                            end
+                            mustack=1/mustack;
+                            dumexp=arrival(n(i))-arrival(parkn(a(1),j));
+                            probn((jjj-1)*y+j)=1-(mustack/(mu(n(i))+mustack))*exp(-dumexp/mustack);%+(0.5)^(x(jjj)/2-size(a,1)-1);%(x(jjj)/2-size(a,1)-1)/(x(jjj)/2);
+                        else
+                            probn((jjj-1)*y+j)=4;
+                        end
+                    end
+                    if sum(parks(:,j))==0
+                        probs((jjj-1)*y+j)=0;
+                    else
+                        if find(parks(:,j)==0,1)>0
+                            a=find(parks(:,j)>0);
+                            mustack=0;
+                            for jj=1:size(a,1)
+                                mustack=mustack+1/mu(parks(a(jj),j));
+                            end
+                            mustack=1/mustack;
+                            dumexp=arrival(n(i))-arrival(parks(a(end),j));
+                            probs((jjj-1)*y+j)=1-(mustack/(mu(n(i))+mustack))*exp(-dumexp/mustack);%+(0.5)^(x(jjj)/2-size(a,1)-1);%(x(jjj)/2-size(a,1)-1)/(x(jjj)/2);;
+                        else
+                            probs((jjj-1)*y+j)=4;
+                        end
+                    end
+                end
+            end
+            prob=[];
+            for j=1:Numisl
+                prob=[prob,probn((j-1)*y+1:j*y),probs((j-1)*y+1:j*y)];
+            end
+            [Min,Imin] = min(prob);
+            if Min==4
+                rejection=rejection+1;
+                rejected=[rejected,n(i)+v];
+                continue;
+            end
+            if rem(ceil(Imin/y),2)==1
+                
+                nisl=floor(floor(Imin/y)/2)+1;
+                
+                parkn=park{nisl}(1:x(nisl)/2,:);
+                parks=park{nisl}(x(nisl)/2+1:end,:);
+                
+                Imin=Imin-(nisl-1)*2*y;
+                
+                if find(parkn(:,Imin)>0,1)>0
+                    a=find(parkn(:,Imin)>0,1)-1;
+                else
+                    a=x(nisl)/2;
+                end
+                parkn(a,Imin)=n(i);
+            else
+                
+                nisl=floor(floor((Imin-1)/y)/2)+1;
+                
+                parkn=park{nisl}(1:x(nisl)/2,:);
+                parks=park{nisl}(x(nisl)/2+1:end,:);
+                
+                Imin=Imin-(nisl-1)*2*y-y;
+                
+                a=find(parks(:,Imin)==0,1);
+                parks(a,Imin)=n(i);
+            end
+                park{nisl}=[parkn;parks];
+            
+        else
+            
+            if sum(ismember(rejected,n(i)))==1;
+                continue;
+            end
+            flag=0;
+            nisl=1;
+            while flag~=1
+                if sum(sum(ismember(park{nisl},n(i)-v)))>0
+                    flag=1;
+                else
+                    nisl=nisl+1;
+                end
+            end
+            l=find(park{nisl}==(n(i)-v),1);
+            if rem(l,x(nisl))<=1
+                park{nisl}(l)=0;
+            elseif rem(l,x(nisl))<=x(nisl)/2
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=1:rem(l,x(nisl))-1
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        mu(stack(j))=max(munew,0.001);
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0;
+                park{nisl}(:,dummy)=stack;
+            else
+                dummy=ceil(l/x(nisl));
+                stack=park{nisl}(:,dummy);
+                for j=rem(l,x(nisl))+1:x(nisl)
+                    if stack(j)~=0
+                        copev=event;
+                        copn=n;
+                        relocation=relocation+1;
+                        eltime=event(i)-event(find(n==stack(j),1,'last'));
+                        munew=mu(stack(j))-eltime;
+                        mu(stack(j))=max(munew,0.001);
+                        if munew<=shdw
+                            type(stack(j))=0.4;
+                        else
+                            type(stack(j))=0.8;
+                        end
+                        event=[copev(1:i) copev(i) copev(i+1:end)];
+                        n=[copn(1:i) stack(j) copn(i+1:end)];
+                        stack(j)=0;
+                    end
+                end
+                stack(rem(l,x(nisl)))=0; 
+                park{nisl}(:,dummy)=stack;
+            end
+        end
+    end
+    rej(itt)=rejection;
+    rel(itt)=relocation;
+end
+bo(:,9)=rel';
+[min(rel), mean(rel), max(rel)]
+if max(rej)>0
+    display('Rejected :');
+    [min(rej), mean(rej), max(rej)]
+end
+result(9)=mean(rel);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+boxplot(bo,'Labels',{'A1','A2','C1','C2','C3','C4','B1','B2','B3'});
+xlabel('Policy');
+ylabel('No. of relocations');
+
+
+end
