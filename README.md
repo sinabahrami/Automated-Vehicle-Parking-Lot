@@ -2,4 +2,4 @@
 
 Integer program is Matlab code of the IP model
 
-Policy simulation is the matlab code of partial information policies
+Simulation is the Matlab code of partial information policies
