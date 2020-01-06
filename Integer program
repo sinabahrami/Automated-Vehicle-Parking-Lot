@@ -1,0 +1,261 @@
+clear;
+clc;
+ptime=cputime;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+A=[62,70,81,98,112,121,124,127,186,219,233,250,251,252];
+D=[502,278,286,113,358,584,257,484,243,589,601,510,613,614];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+V=14;   %number of vehicles |V|
+L=1;    %number of islands
+l=[4];    %number of rows in islands
+J=l(1)/2;
+W=3;    %number of columns
+T=2*V;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for i=1:L
+    T=T+W/4*(l(i)^2-2*l(i));
+end
+T=T+2; %first and last event
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Na=V*T;
+Nij=sum(W.*l);
+Nb=Nij*V*T;
+Nd=Na;
+Nx=Nb;
+Ny=Nij*Nij*V*T;
+Nz=Nb;
+Ndelta=sum(W.*(l-2))*(T-1);
+Nn=Ndelta;
+Ns=Ndelta;
+format long g
+VarNum=Na+Nb+Nd+Nx+Ny+Nz+Nn+Ns+Ndelta
+ConstNum=V*T+Nij*T+T+(T-1)+V*(T-1)+Nij*V*(T-1)+V*(T-1)+V*(V-1)+V^2+1+1+4*Ndelta
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% sizetest=zeros(ConstNum,VarNum);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%order of variables
+%alphabet order of variables for vehicle 1..v for event t=1..T 
+%for b and y spot from 1 to n then v then t
+%at the end N+S+delta
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 2
+B2=ones(V*T,1);
+con2=[];
+for v=1:V
+    for t=1:T
+        con2=[con2; zeros(1,(t-1)*V) zeros(1,v-1) 1 zeros(1,V-v) zeros(1,(T-t)*V) zeros(1,(t-1)*Nij*V) zeros(1,(v-1)*Nij) ones(1,Nij) zeros(1,(V-v)*Nij) zeros(1,(T-t)*Nij*V) zeros(1,(t-1)*V) zeros(1,v-1) 1 zeros(1,V-v) zeros(1,(T-t)*V) zeros(1,Nx+Ny+Nz) zeros(1,Nn+Ns+Ndelta)];  
+       %con2=[con2; all  av up to t  av      for    current   t   future     av 
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 3
+B3=ones(Nij*T,1);
+con3=[];
+% J=3;
+for i=1:2*W*L
+    for j=1:J         %%%%%%% need modification for general coding
+        for t=1:T
+            dummy=[zeros(1,(i-1)*J) zeros(1,j-1) 1 zeros(1,J-j) zeros(1,(2*W*L-i)*J)]; 
+            con3=[con3; zeros(1,Na) zeros(1,(t-1)*Nij*V) repmat(dummy,1,V) zeros(1,(T-t)*Nij*V) zeros(1,Nd+Nx+Ny+Nz) zeros(1,Nn+Ns+Ndelta)];
+        end
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 4
+B4=ones(T,1);
+con4=[];
+for t=1:T
+    con4=[con4;zeros(1,Na+Nb+Nd) zeros(1,(t-1)*Nij*V) ones(1,Nij*V) zeros(1,(T-t)*Nij*V) zeros(1,(t-1)*Nij*Nij*V) ones(1,Nij*Nij*V) zeros(1,(T-t)*Nij*Nij*V) zeros(1,(t-1)*Nij*V) ones(1,Nij*V) zeros(1,(T-t)*Nij*V) zeros(1,Nn+Ns+Ndelta)];
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 5
+B5=zeros(T-1,1);
+con5=[];
+for t=2:T
+    con5=[con5;zeros(1,Na+Nb+Nd) zeros(1,(t-2)*Nij*V) ones(1,Nij*V).*(-1) ones(1,Nij*V) zeros(1,(T-t)*Nij*V) zeros(1,(t-2)*Nij*Nij*V) ones(1,Nij*Nij*V).*(-1) ones(1,Nij*Nij*V) zeros(1,(T-t)*Nij*Nij*V) zeros(1,(t-2)*Nij*V) ones(1,Nij*V).*(-1) ones(1,Nij*V) zeros(1,(T-t)*Nij*V) zeros(1,Nn+Ns+Ndelta)];
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 6
+B6=zeros(V*(T-1),1);
+con6=[];
+for v=1:V
+    for t=2:T
+        con6=[con6; zeros(1,(t-2)*V) zeros(1,v-1) -1 zeros(1,V-v) zeros(1,v-1) 1 zeros(1,V-v) zeros(1,(T-t)*V) zeros(1,Nb+Nd) zeros(1,(t-2)*Nij*V) zeros(1,(v-1)*Nij) ones(1,Nij) zeros(1,(V-v)*Nij) zeros(1,(T-t+1)*Nij*V) zeros(1,Ny+Nz) zeros(1,Nn+Ns+Ndelta)];
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 7
+B7=zeros(Nij*V*(T-1),1);
+con7=[];
+for i=1:2*W*L
+    for j=1:J 
+        for v=1:V
+            for t=2:T
+                du1=[zeros(1,(i-1)*J) zeros(1,j-1) -1 zeros(1,J-j) zeros(1,(2*W*L-i)*J)];
+                dummy1=repmat(du1,1,Nij);
+                dummy2=[zeros(1,(i-1)*J*Nij) zeros(1,(j-1)*Nij) ones(1,Nij) zeros(1,(J-j)*Nij) zeros(1,(2*W*L-i)*J*Nij)];
+                dummy=dummy1+dummy2;
+                con7=[con7;zeros(1,Na) zeros(1,(t-2)*Nij*V) zeros(1,(v-1)*Nij) zeros(1,(i-1)*J) zeros(1,j-1) -1 zeros(1,J-j) zeros(1,(2*W*L-i)*J) zeros(1,(V-v)*Nij) zeros(1,(v-1)*Nij) zeros(1,(i-1)*J) zeros(1,j-1) 1 zeros(1,J-j) zeros(1,(2*W*L-i)*J) zeros(1,(V-v)*Nij) zeros(1,(T-t)*Nij*V) zeros(1,Nd) zeros(1,(t-2)*Nij*V) zeros(1,(v-1)*Nij) zeros(1,(i-1)*J) zeros(1,j-1) -1 zeros(1,J-j) zeros(1,(2*W*L-i)*J) zeros(1,(V-v)*Nij) zeros(1,(T-t+1)*Nij*V) zeros(1,(t-2)*Nij*Nij*V) zeros(1,(v-1)*Nij*Nij) dummy zeros(1,(V-v)*Nij*Nij) zeros(1,(T-t+1)*Nij*Nij*V) zeros(1,(t-2)*Nij*V) zeros(1,(v-1)*Nij) zeros(1,(i-1)*J) zeros(1,j-1) 1 zeros(1,J-j) zeros(1,(2*W*L-i)*J) zeros(1,(V-v)*Nij) zeros(1,(T-t+1)*Nij*V) zeros(1,Nn+Ns+Ndelta)];               
+%               test=[zeros(1,(t-2)*Nij*Nij*V) zeros(1,(v-1)*Nij*Nij) dummy zeros(1,(V-v)*Nij*Nij) zeros(1,(T-t+1)*Nij*Nij*V)];
+%               testnb=[zeros(1,(t-2)*Nij*V) zeros(1,(v-1)*Nij) zeros(1,(i-1)*J) zeros(1,j-1) -1 zeros(1,J-j) zeros(1,(2*W*L-i)*J) zeros(1,(V-v)*Nij) zeros(1,(v-1)*Nij) zeros(1,(i-1)*J) zeros(1,j-1) 1 zeros(1,J-j) zeros(1,(2*W*L-i)*J) zeros(1,(V-v)*Nij) zeros(1,(T-t)*Nij*V)];
+            end
+        end
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 8
+B8=zeros(V*(T-1),1);
+con8=[];
+for v=1:V
+    for t=2:T
+        con8=[con8;zeros(1,Na+Nb) zeros(1,(t-2)*V) zeros(1,v-1) -1 zeros(1,V-v) zeros(1,v-1) 1 zeros(1,V-v) zeros(1,(T-t)*V) zeros(1,Nx+Ny) zeros(1,(t-2)*Nij*V) zeros(1,(v-1)*Nij) ones(1,Nij).*(-1) zeros(1,(V-v)*Nij) zeros(1,(T-t+1)*Nij*V) zeros(1,Nn+Ns+Ndelta)];
+    end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 9
+con9=[];
+for v=1:V
+    for vp=1:V
+        if A(v)<A(vp)
+            dumm1=[zeros(1,v-1) 1 zeros(1,V-v)];
+            dumm2=[zeros(1,vp-1) -1 zeros(1,V-vp)];
+            dummy=dumm1+dumm2;
+            con9=[con9; repmat(dummy,1,T) zeros(1,Nb+Nd+Nx+Ny+Nz) zeros(1,Nn+Ns+Ndelta)];
+        end
+    end
+end
+B9=ones(size(con9,1),1).*(-1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 10
+con10=[];
+for v=1:V
+    for vp=1:V
+        if D(v)<D(vp)
+            dumm1=[zeros(1,v-1) 1 zeros(1,V-v)];
+            dumm2=[zeros(1,vp-1) -1 zeros(1,V-vp)];
+            dummy=dumm1+dumm2;
+            con10=[con10; zeros(1,Na+Nb) repmat(dummy,1,T) zeros(1,Nx+Ny+Nz) zeros(1,Nn+Ns+Ndelta)];
+        end
+    end
+end
+con10=con10.*(-1);
+B10=ones(size(con10,1),1).*(-1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 11
+con11=[];
+for v=1:V
+    for vp=1:V
+        if A(v)<D(vp)
+            dummy1=[zeros(1,v-1) 1 zeros(1,V-v)];
+            dummy2=[zeros(1,vp-1) 1 zeros(1,V-vp)];
+            con11=[con11; repmat(dummy1,1,T) zeros(1,Nb) repmat(dummy2,1,T) zeros(1,Nx+Ny+Nz) zeros(1,Nn+Ns+Ndelta)];
+        end
+    end
+end
+B11=ones(size(con11,1),1).*(T-1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 12
+con12=[];
+for v=1:V
+    for vp=1:V
+        if D(v)<A(vp)
+            dummy1=[zeros(1,v-1) -1 zeros(1,V-v)];
+            dummy2=[zeros(1,vp-1) -1 zeros(1,V-vp)];
+            con12=[con12; repmat(dummy2,1,T) zeros(1,Nb) repmat(dummy1,1,T) zeros(1,Nx+Ny+Nz) zeros(1,Nn+Ns+Ndelta)];
+        end
+    end
+end
+B12=ones(size(con12,1),1).*(-T-1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 13
+B13=V;
+con13=[ones(1,V) zeros(1,(V)*(T-1)) zeros(1,Nb+Nd+Nx+Ny+Nz) zeros(1,Nn+Ns+Ndelta)];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint 14
+B14=V;
+con14=[zeros(1,Na+Nb) zeros(1,(V)*(T-1)) ones(1,V) zeros(1,Nx+Ny+Nz) zeros(1,Nn+Ns+Ndelta)];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint15
+con15=[];
+for i=1:2*W*L
+    for j=1:J-1         
+        for t=2:T
+            dummy=[zeros(1,(i-1)*J) zeros(1,j-1) 0 ones(1,J-j) zeros(1,(2*W*L-i)*J)]; 
+            con15=[con15; zeros(1,Na) zeros(1,(t-1)*Nij*V) repmat(dummy,1,V) zeros(1,(T-t)*Nij*V) zeros(1,Nd+Nx+Ny+Nz) zeros(1,(t-2)*sum(W.*(l-2))) zeros(1,(i-1)*(J-1)) zeros(1,j-1) -2*J zeros(1,J-j-1) zeros(1,(2*W*L-i)*(J-1)) zeros(1,(T-t)*sum(W.*(l-2))) zeros(1,Ns+Ndelta)];
+        end
+    end
+end
+B15=zeros(size(con15,1),1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint16 %south
+con16=[];
+for i=1:2*W*L
+    for j=1:J-1         
+        for t=2:T
+            if i<=W
+                dummy=[zeros(1,(i-1)*J) ones(1,j-1) 0 zeros(1,J-j) zeros(1,(W-1)*J) ones(1,J) zeros(1,(2*W*L-i-W)*J)];
+            else
+                dummy=[zeros(1,(i-W-1)*J) ones(1,J) zeros(1,(W-1)*J) ones(1,j-1) 0 zeros(1,J-j) zeros(1,(2*W*L-i)*J)];
+            end
+            con16=[con16; zeros(1,Na) zeros(1,(t-1)*Nij*V) repmat(dummy,1,V) zeros(1,(T-t)*Nij*V) zeros(1,Nd+Nx+Ny+Nz) zeros(1,Nn) zeros(1,(t-2)*sum(W.*(l-2))) zeros(1,(i-1)*(J-1)) zeros(1,j-1) -2*J zeros(1,J-j-1) zeros(1,(2*W*L-i)*(J-1)) zeros(1,(T-t)*sum(W.*(l-2))) zeros(1,Ndelta)];
+        end
+    end
+end
+B16=zeros(size(con16,1),1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint17
+con17=[];
+for i=1:2*W*L
+    for j=1:J-1        
+        for t=2:T
+            dummy=[zeros(1,(i-1)*J) zeros(1,j-1) -1 zeros(1,J-j) zeros(1,(2*W*L-i)*J)]; 
+            con17=[con17; zeros(1,Na) zeros(1,(t-2)*Nij*V) repmat(dummy,1,V) repmat(dummy,1,V) zeros(1,(T-t)*Nij*V) zeros(1,Nd+Nx+Ny+Nz) zeros(1,(t-2)*sum(W.*(l-2))) zeros(1,(i-1)*(J-1)) zeros(1,j-1) 1 zeros(1,J-j-1) zeros(1,(2*W*L-i)*(J-1)) zeros(1,(T-t)*sum(W.*(l-2))) zeros(1,(t-2)*sum(W.*(l-2))) zeros(1,(i-1)*(J-1)) zeros(1,j-1) 1 zeros(1,J-j-1) zeros(1,(2*W*L-i)*(J-1)) zeros(1,(T-t)*sum(W.*(l-2))) zeros(1,(t-2)*sum(W.*(l-2))) zeros(1,(i-1)*(J-1)) zeros(1,j-1) -2 zeros(1,J-j-1) zeros(1,(2*W*L-i)*(J-1)) zeros(1,(T-t)*sum(W.*(l-2)))];
+        end
+    end
+end
+B17=zeros(size(con17,1),1);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%constraint18
+con18=[];
+for i=1:2*W*L
+    for j=1:J-1        
+        for t=2:T
+            dummy=[zeros(1,(i-1)*J) zeros(1,j-1) 1 zeros(1,J-j) zeros(1,(2*W*L-i)*J)]; 
+            con18=[con18; zeros(1,Na) zeros(1,(t-2)*Nij*V) repmat(dummy,1,V) repmat(dummy,1,V) zeros(1,(T-t)*Nij*V) zeros(1,Nd+Nx+Ny+Nz) zeros(1,Nn+Ns) zeros(1,(t-2)*sum(W.*(l-2))) zeros(1,(i-1)*(J-1)) zeros(1,j-1) 2 zeros(1,J-j-1) zeros(1,(2*W*L-i)*(J-1)) zeros(1,(T-t)*sum(W.*(l-2)))];
+        end
+    end
+end
+B18=ones(size(con18,1),1).*(2);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+save('model-2x6.mat'); %2x6 means 2columns with 6 rows
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+f=[zeros(1,Na+Nb+Nd+Nx) ones(1,Ny) zeros(1,Nz) zeros(1,Nn+Ns+Ndelta)];
+Aeq=[con2;con6;con7;con8;con13;con14];
+beq=[B2;B6;B7;B8;B13;B14];
+Aineq=[con3;con4;con5;con9;con10;con11;con12;con15;con16;con17;con18];
+bineq=[B3;B4;B5;B9;B10;B11;B12;B15;B16;B17;B18];
+lb=zeros(1,VarNum);
+ub=ones(1,VarNum);
+ctype=[repmat('B',1,VarNum)];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+progtime=cputime-ptime
+stime=cputime;
+[x,fval,exitflag,output]=cplexmilp(f,Aineq,bineq,Aeq,beq,[],[],[],lb,ub,ctype);
+soltime=cputime-stime
+fval
+exitflag
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Vx=[x(Na+Nb+Nd+1:Na+Nb+Nd+Nx)];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+model.A=sparse([con2;con3;con4;con5;con6;con7;con8;con9;con10;con11;con12;con13;con14;con15;con16;con17;con18]);
+model.obj=f;
+model.sense=[repmat('=',size(B2,1),1);repmat('<',size(B3,1),1);repmat('<',size(B4,1),1);repmat('<',size(B5,1),1);repmat('=',size(B6,1),1);repmat('=',size(B7,1),1);repmat('=',size(B8,1),1);repmat('<',size(B9,1),1);repmat('<',size(B10,1),1);repmat('<',size(B11,1),1);repmat('<',size(B12,1),1);repmat('=',size(B13,1),1);repmat('=',size(B14,1),1);repmat('<',size(B15,1),1);repmat('<',size(B16,1),1);repmat('<',size(B17,1),1);repmat('<',size(B18,1),1)];
+model.rhs=[B2;B3;B4;B5;B6;B7;B8;B9;B10;B11;B12;B13;B14;B15;B16;B17;B18];
+model.vtype=ctype;
+model.modelsense = 'Min';
+params.BestObjStop=0;
+result = gurobi(model, params);
+disp(result.objval);
